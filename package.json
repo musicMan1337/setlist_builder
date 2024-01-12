@@ -1,0 +1,25 @@
+{
+  "name": "setlist_builder",
+  "version": "1.0.0",
+  "description": "Quickly gather and combine music for shows",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/musicMan1337/setlist_builder.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/musicMan1337/setlist_builder/issues"
+  },
+  "homepage": "https://github.com/musicMan1337/setlist_builder#readme",
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "rimraf": "^5.0.5",
+    "typescript": "^5.3.3"
+  }
+}
