@@ -1,5 +1,5 @@
 import fs from "fs"
-import { readFile } from "fs/promises"
+// import { readFile } from "fs/promises"
 import path from "path"
 import { spawn } from "child_process"
 import cliProgress from "cli-progress"
@@ -62,181 +62,189 @@ const progressTotal = Object.keys(PARTS).length
 progress.start(progressTotal, 0)
 
 // extract sources from json
-async function loadSongSources(): Promise<SongSources> {
-  const sourceFile = path.join(sourcesDir, SETLIST.sourceName + ".json")
+// function loadSongSources(): SongSources {
+//   const sourceFile = path.join(sourcesDir, SETLIST.sourceName + ".json")
 
-  try {
-    const data: SongSources = await readFile(sourceFile, {
-      encoding: "utf8",
-    }).then(JSON.parse)
-    return data
-  } catch (e) {
-    console.error(e)
-    console.error("No source exists for: " + SETLIST.sourceName)
-    process.exit(1)
-  }
+//   try {
+//     const jsonData = fs.readFileSync(sourceFile, {
+//       encoding: "utf8",
+//     })
+//     return JSON.parse(jsonData)
+//   } catch (e) {
+//     console.error(e)
+//     console.error("No source exists for: " + SETLIST.sourceName)
+//     process.exit(1)
+//   }
+// }
+
+const sourceFile = path.join(sourcesDir, SETLIST.sourceName + ".json")
+
+let songSources: SongSources
+
+try {
+  const jsonData = fs.readFileSync(sourceFile, {
+    encoding: "utf8",
+  })
+  songSources = JSON.parse(jsonData)
+} catch (e) {
+  console.error(e)
+  console.error("No source exists for: " + SETLIST.sourceName)
+  process.exit(1)
 }
 
-// the rest of the script is wrapped in this promise
-loadSongSources().then((songSources) => {
-  const notFoundParts: Record<string, string[]> = {}
-  const foundSongs: Record<string, SongSource[]> = {}
-  const foundParts: Record<string, Song[]> = {}
+const notFoundParts: Record<string, string[]> = {}
+const foundSongs: Record<string, SongSource[]> = {}
+const foundParts: Record<string, Song[]> = {}
 
-  // search for all parts for all setlist songs
-  SETLIST.sets.forEach(({ setName, songs }, idx) => {
-    if (onlyMerge) {
-      return
+// search for all parts for all setlist songs
+SETLIST.sets.forEach(({ setName, songs }, idx) => {
+  if (onlyMerge) {
+    return
+  }
+
+  // find all sources for this set's songs
+  songs.forEach((shortName) => {
+    foundSongs[shortName] = findAllSongs(shortName, songSources)
+  })
+
+  const setNumber = idx + 1
+
+  // match sources to parts
+  Object.keys(PARTS).forEach((part) => {
+    createSetlistFile(thisSetlistDir, part, setNumber, setName)
+
+    if (!notFoundParts[part]) {
+      notFoundParts[part] = []
+      foundParts[part] = []
     }
 
-    // find all sources for this set's songs
-    songs.forEach((shortName) => {
-      foundSongs[shortName] = findAllSongs(shortName, songSources)
-    })
+    const [partName, partNumber = "0"] = part.split(" ")
 
-    const setNumber = idx + 1
+    // find all sources for this part
+    songs.forEach((shortName, idx) => {
+      const songNumber = idx + 1 < 10 ? "0" + (idx + 1) : idx + 1 + ""
+      const fullSongNumber = `${setNumber}.${songNumber}`
 
-    // match sources to parts
-    Object.keys(PARTS).forEach((part) => {
-      createSetlistFile(thisSetlistDir, part, setNumber, setName)
+      const partSourcesRaw = getPartSourcesRaw(foundSongs, shortName, partName)
 
-      if (!notFoundParts[part]) {
-        notFoundParts[part] = []
-        foundParts[part] = []
+      const partSources = getPartSources(partSourcesRaw, partNumber)
+
+      // not found - unhappy path
+      if (partSources.length === 0) {
+        notFoundParts[part].push(shortName)
       }
 
-      const [partName, partNumber = "0"] = part.split(" ")
-
-      // find all sources for this part
-      songs.forEach((shortName, idx) => {
-        const songNumber = idx + 1 < 10 ? "0" + (idx + 1) : idx + 1 + ""
-        const fullSongNumber = `${setNumber}.${songNumber}`
-
-        const partSourcesRaw = getPartSourcesRaw(
-          foundSongs,
-          shortName,
-          partName,
-        )
-
-        const partSources = getPartSources(partSourcesRaw, partNumber)
-
-        // not found - unhappy path
-        if (partSources.length === 0) {
-          notFoundParts[part].push(shortName)
-        }
-
-        // found - happiest path
-        if (partSources.length) {
-          partSources.forEach((source) => {
-            if (partName.includes("aux") && partSources.length > 1) {
-              // if there's an aux part, don't include drums
-              if (source.part === "drums") {
-                return
-              }
+      // found - happiest path
+      if (partSources.length) {
+        partSources.forEach((source) => {
+          if (partName.includes("aux") && partSources.length > 1) {
+            // if there's an aux part, don't include drums
+            if (source.part === "drums") {
+              return
             }
+          }
 
-            const foundSource: Song = source
-            foundSource.customName = `${fullSongNumber}. ${source.fullName}`
-            foundParts[part].push(source)
-          })
-        }
-      })
+          const foundSource: Song = source
+          foundSource.customName = `${fullSongNumber}. ${source.fullName}`
+          foundParts[part].push(source)
+        })
+      }
     })
   })
+})
 
-  // swap trumpet parts if necessary
-  conditionallySwapTptParts(foundParts, onlyMerge)
+// swap trumpet parts if necessary
+conditionallySwapTptParts(foundParts, onlyMerge)
 
-  //copy parts into respective folders
-  Object.entries(foundParts).forEach(([part, partSources]) => {
-    partSources.forEach((source) => {
-      const partDir = path.join(thisSetlistDir, part)
-      const sourcePath = source.filePath
-      const destPath = path.join(
-        partDir,
-        (source.customName ?? source.fullName) + ".pdf",
-      )
-
-      fs.copyFileSync(sourcePath, destPath)
-    })
-  })
-
-  // export json files for debugging
-  fs.writeFileSync(
-    path.join(__dirname, "foundSongs.json"),
-    JSON.stringify(foundSongs, null, 2),
-  )
-
-  fs.writeFileSync(
-    path.join(__dirname, "foundParts.json"),
-    JSON.stringify(foundParts, null, 2),
-  )
-
-  fs.writeFileSync(
-    path.join(__dirname, "notFoundParts.json"),
-    JSON.stringify(notFoundParts, null, 2),
-  )
-
-  // merge parts via python script
-  progress.increment({ part: "Merging parts . . ." })
-
-  const mergedParts: string[] = []
-  const failedMerges: string[] = []
-
-  Object.entries(PARTS).forEach(([part, songs]) => {
-    const out = thisSetlistDir
-    const source = path.join(thisSetlistDir, part)
-    const merge = path.join(
-      thisSetlistDir,
-      `${SETLIST.setlistName} - ${part}.pdf`,
+//copy parts into respective folders
+Object.entries(foundParts).forEach(([part, partSources]) => {
+  partSources.forEach((source) => {
+    const partDir = path.join(thisSetlistDir, part)
+    const sourcePath = source.filePath
+    const destPath = path.join(
+      partDir,
+      (source.customName ?? source.fullName) + ".pdf",
     )
 
-    executePythonScript({ out, source, merge, part })
+    fs.copyFileSync(sourcePath, destPath)
+  })
+})
+
+// export json files for debugging
+fs.writeFileSync(
+  path.join(__dirname, "foundSongs.json"),
+  JSON.stringify(foundSongs, null, 2),
+)
+
+fs.writeFileSync(
+  path.join(__dirname, "foundParts.json"),
+  JSON.stringify(foundParts, null, 2),
+)
+
+fs.writeFileSync(
+  path.join(__dirname, "notFoundParts.json"),
+  JSON.stringify(notFoundParts, null, 2),
+)
+
+// merge parts via python script
+progress.increment({ part: "Merging parts . . ." })
+
+const mergedParts: string[] = []
+const failedMerges: string[] = []
+
+Object.entries(PARTS).forEach(([part, songs]) => {
+  const out = thisSetlistDir
+  const source = path.join(thisSetlistDir, part)
+  const merge = path.join(
+    thisSetlistDir,
+    `${SETLIST.setlistName} - ${part}.pdf`,
+  )
+
+  executePythonScript({ out, source, merge, part })
+})
+
+type PyScriptArgs = {
+  out: string
+  source: string
+  merge: string
+  part: string
+}
+
+function executePythonScript({ out, source, merge, part }: PyScriptArgs) {
+  progress.increment()
+
+  const scriptPath = "merge.py"
+  const args = [`-out=${out}`, `-source=${source}`, `-merge=${merge}`]
+
+  // Spawn the Python process
+  const pythonProcess = spawn("python", [scriptPath, ...args])
+
+  // Handle the standard output and error
+  pythonProcess.stdout.on("data", (data) => {
+    console.log(`stdout: ${data}`)
   })
 
-  type PyScriptArgs = {
-    out: string
-    source: string
-    merge: string
-    part: string
-  }
+  pythonProcess.stderr.on("data", (data) => {
+    console.error(`stderr: ${data}`)
+  })
 
-  function executePythonScript({ out, source, merge, part }: PyScriptArgs) {
+  // Handle the close event
+  pythonProcess.on("close", (code) => {
     progress.increment()
 
-    const scriptPath = "merge.py"
-    const args = [`-out=${out}`, `-source=${source}`, `-merge=${merge}`]
+    mergedParts.push(part)
 
-    // Spawn the Python process
-    const pythonProcess = spawn("python", [scriptPath, ...args])
+    if (code !== 0) {
+      failedMerges.push(part)
+    }
 
-    // Handle the standard output and error
-    pythonProcess.stdout.on("data", (data) => {
-      console.log(`stdout: ${data}`)
-    })
+    fs.rmSync(`${merge}_temp-toc.pdf`)
 
-    pythonProcess.stderr.on("data", (data) => {
-      console.error(`stderr: ${data}`)
-    })
+    if (mergedParts.length === Object.keys(PARTS).length) {
+      progress.update(progressTotal, { part: "Done!" })
+      progress.stop()
 
-    // Handle the close event
-    pythonProcess.on("close", (code) => {
-      progress.increment()
-
-      mergedParts.push(part)
-
-      if (code !== 0) {
-        failedMerges.push(part)
-      }
-
-      fs.rmSync(`${merge}_temp-toc.pdf`)
-
-      if (mergedParts.length === Object.keys(PARTS).length) {
-        progress.update(progressTotal, { part: "Done!" })
-        progress.stop()
-
-        closingLogs(foundParts, notFoundParts, failedMerges)
-      }
-    })
-  }
-})
+      closingLogs(foundParts, notFoundParts, failedMerges)
+    }
+  })
+}
