@@ -62,21 +62,6 @@ const progressTotal = Object.keys(PARTS).length
 progress.start(progressTotal, 0)
 
 // extract sources from json
-// function loadSongSources(): SongSources {
-//   const sourceFile = path.join(sourcesDir, SETLIST.sourceName + ".json")
-
-//   try {
-//     const jsonData = fs.readFileSync(sourceFile, {
-//       encoding: "utf8",
-//     })
-//     return JSON.parse(jsonData)
-//   } catch (e) {
-//     console.error(e)
-//     console.error("No source exists for: " + SETLIST.sourceName)
-//     process.exit(1)
-//   }
-// }
-
 const sourceFile = path.join(sourcesDir, SETLIST.sourceName + ".json")
 
 let songSources: SongSources
@@ -105,6 +90,11 @@ SETLIST.sets.forEach(({ setName, songs }, idx) => {
   // find all sources for this set's songs
   songs.forEach((shortName) => {
     foundSongs[shortName] = findAllSongs(shortName, songSources)
+
+    if (!foundSongs[shortName].length) {
+      console.error(`Song not found: ${shortName}`)
+      process.exit(1)
+    }
   })
 
   const setNumber = idx + 1
@@ -132,23 +122,22 @@ SETLIST.sets.forEach(({ setName, songs }, idx) => {
       // not found - unhappy path
       if (partSources.length === 0) {
         notFoundParts[part].push(shortName)
+        return
       }
 
-      // found - happiest path
-      if (partSources.length) {
-        partSources.forEach((source) => {
-          if (partName.includes("aux") && partSources.length > 1) {
-            // if there's an aux part, don't include drums
-            if (source.part === "drums") {
-              return
-            }
+      // found!
+      partSources.forEach((source) => {
+        if (partName.includes("aux") && partSources.length > 1) {
+          // if there's an aux part, don't include drums
+          if (source.part === "drums") {
+            return
           }
+        }
 
-          const foundSource: Song = source
-          foundSource.customName = `${fullSongNumber}. ${source.fullName}`
-          foundParts[part].push(source)
-        })
-      }
+        const foundSource: Song = source
+        foundSource.customName = `${fullSongNumber}. ${source.fullName}`
+        foundParts[part].push(source)
+      })
     })
   })
 })

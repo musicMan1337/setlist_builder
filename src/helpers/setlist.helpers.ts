@@ -49,10 +49,13 @@ const getPartCbValue = (partName: string): CbVersion => {
   switch (true) {
     case partName.includes("trumpet"):
       cbKey = "trumpet"
+      break
     case partName.includes("bone"):
       cbKey = "trombone"
+      break
     case ["alto", "tenor", "bari"].includes(partName):
       cbKey = "sax"
+      break
   }
 
   return cbVersions[cbKey]
@@ -104,11 +107,6 @@ export const findAllSongs = (shortName: string, songSources: SongSources) => {
     return sourceSong.fullName.includes(cbValue)
   })
 
-  if (!sourceParts.length) {
-    console.error(`Song not found: ${shortName}`)
-    process.exit(1)
-  }
-
   return sourceParts
 }
 
@@ -151,17 +149,13 @@ export const getPartSources = (
 ) => {
   let partSources: SongSource[] = []
 
-  if (partNumber === "0") {
-    partSources = partSourcesRaw.filter(
-      (sourceSong) => sourceSong.partNumber <= 1,
-    )
-  } else {
+  if (partNumber !== "0") {
     partSources = partSourcesRaw.filter(
       (sourceSong) => sourceSong.partNumber === Number(partNumber),
     )
   }
 
-  if (partSources.length === 0) {
+  if (partNumber === "0" || partSources.length === 0) {
     partSources = partSourcesRaw.filter(
       (sourceSong) => sourceSong.partNumber <= 1,
     )
