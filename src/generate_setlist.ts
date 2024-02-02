@@ -22,23 +22,14 @@ import type { Song } from "./types/setlists"
 import { SongSource, SongSources } from "./types/sources"
 
 /*
-args format:
--s{number} : number saxes
--t{number} : number trumpets
--b{number} : number bones
--m         : only merge existing parts
--ns        : no-swap trumpets (default is to swap 2 trumpets)
-
 CB Song Format:
 CB-[song name]
 
 NOTE: [song name] must be exact, not uncluding the size
 */
 
-// extract -args
-const args = process.argv.slice(2)
-
-const onlyMerge = args.includes("-m")
+const onlyMerge = !!SETLIST.options.onlyMerge
+const numHorns = SETLIST.options.numHorns || 0
 
 // create and bootstrap setlist directory
 const setlistDir = path.join(__dirname, "..", SETLISTS_DIR)
@@ -81,6 +72,20 @@ const notFoundParts: Record<string, string[]> = {}
 const foundSongs: Record<string, SongSource[]> = {}
 const foundParts: Record<string, Song[]> = {}
 
+function getSongParts(songName: string) {
+  const songParts = songName.split(" - ")
+
+  let shortName = songParts[0]
+  let exactName = false
+
+  if (shortName.startsWith("'") && shortName.endsWith("'")) {
+    shortName = shortName.slice(1, -1)
+    exactName = true
+  }
+
+  return { shortName, key: songParts[1] ?? "", exactName }
+}
+
 // search for all parts for all setlist songs
 SETLIST.sets.forEach(({ setName, songs }, idx) => {
   if (onlyMerge) {
@@ -88,10 +93,12 @@ SETLIST.sets.forEach(({ setName, songs }, idx) => {
   }
 
   // find all sources for this set's songs
-  songs.forEach((shortName) => {
-    foundSongs[shortName] = findAllSongs(shortName, songSources)
+  songs.forEach((songNameRaw) => {
+    const { key, shortName, exactName } = getSongParts(songNameRaw)
 
-    if (!foundSongs[shortName].length) {
+    foundSongs[shortName] = findAllSongs(shortName, key, songSources, exactName)
+
+    if (SETLIST.sourceName === "mammoth" && !foundSongs[shortName].length) {
       console.error(`Song not found: ${shortName}`)
       process.exit(1)
     }
@@ -111,13 +118,15 @@ SETLIST.sets.forEach(({ setName, songs }, idx) => {
     const [partName, partNumber = "0"] = part.split(" ")
 
     // find all sources for this part
-    songs.forEach((shortName, idx) => {
+    songs.forEach((songNameRaw, idx) => {
+      const { shortName } = getSongParts(songNameRaw)
+
       const songNumber = idx + 1 < 10 ? "0" + (idx + 1) : idx + 1 + ""
       const fullSongNumber = `${setNumber}.${songNumber}`
 
       const partSourcesRaw = getPartSourcesRaw(foundSongs, shortName, partName)
 
-      const partSources = getPartSources(partSourcesRaw, partNumber)
+      const partSources = getPartSources(partSourcesRaw, partNumber, numHorns)
 
       // not found - unhappy path
       if (partSources.length === 0) {
@@ -142,8 +151,10 @@ SETLIST.sets.forEach(({ setName, songs }, idx) => {
   })
 })
 
-// swap trumpet parts if necessary
-conditionallySwapTptParts(foundParts, onlyMerge)
+if (SETLIST.sourceName === "mammoth") {
+  // swap trumpet parts if necessary
+  conditionallySwapTptParts(foundParts, onlyMerge)
+}
 
 //copy parts into respective folders
 Object.entries(foundParts).forEach(([part, partSources]) => {
@@ -191,6 +202,9 @@ Object.entries(PARTS).forEach(([part, songs]) => {
 
   executePythonScript({ out, source, merge, part })
 })
+
+// progress.update(progressTotal, { part: "Done!" })
+// progress.stop()
 
 type PyScriptArgs = {
   out: string

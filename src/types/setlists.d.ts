@@ -14,6 +14,14 @@ export type Song = {
 export type Setlist = {
   setlistName: string
   sourceName: string
+  options: {
+    saxes?: number
+    trumpets?: number
+    trombones?: number
+    onlyMerge?: boolean
+    allKeys?: boolean
+    numHorns?: number
+  }
   sets: {
     setName: string
     songs: string[]

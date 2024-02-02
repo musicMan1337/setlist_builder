@@ -38,12 +38,12 @@ const cbVersions: Record<CbPartType, CbVersion> = {
   rhythm: rhythmVersion,
 }
 
-const isCbTune = (song: string) => {
+function isCbTune(song: string) {
   const cbIndicators = ["(Cover", "(M", "(S"]
   return cbIndicators.some((indicator) => song.includes(indicator))
 }
 
-const getPartCbValue = (partName: string): CbVersion => {
+function getPartCbValue(partName: string): CbVersion {
   let cbKey: CbPartType = "rhythm"
 
   switch (true) {
@@ -82,14 +82,21 @@ export const bootstrapSetlistDir = (setlistDir: string) => {
   })
 }
 
-export const findAllSongs = (shortName: string, songSources: SongSources) => {
+export const findAllSongs = (
+  shortName: string,
+  key: string,
+  songSources: SongSources,
+  exactName: boolean,
+) => {
   // find by shortName
   let sourceParts = songSources.songs.filter(
     (sourceSong) =>
-      sourceSong.shortName.toLowerCase() === shortName.toLowerCase(),
+      sourceSong.shortName.toLowerCase() === shortName.toLowerCase() &&
+      (!SETLIST.options.allKeys ||
+        (SETLIST.options.allKeys && (sourceSong.key || "") === key)),
   )
 
-  if (!sourceParts.length) {
+  if (!sourceParts.length && !exactName) {
     // "fuzzy" find by shortName
     sourceParts = songSources.songs.filter((sourceSong) =>
       sourceSong.shortName.toLowerCase().includes(shortName.toLowerCase()),
@@ -146,6 +153,7 @@ export const getPartSourcesRaw = (
 export const getPartSources = (
   partSourcesRaw: SongSource[],
   partNumber: string,
+  numHorns: number,
 ) => {
   let partSources: SongSource[] = []
 
@@ -158,6 +166,55 @@ export const getPartSources = (
   if (partNumber === "0" || partSources.length === 0) {
     partSources = partSourcesRaw.filter(
       (sourceSong) => sourceSong.partNumber <= 1,
+    )
+  }
+
+  if (numHorns) {
+    // if the hornNum matches, include ONLY the singular sourceSong (sourceSong.fullName)
+    // if there are no matches, include source for closest hornNum for given sourceSong.shortName
+    const shortNameHornNums = partSources.reduce<Record<string, number[]>>(
+      (obj, sourceSong) => {
+        if (!obj[sourceSong.shortName]) {
+          obj[sourceSong.shortName] = []
+        }
+
+        if (sourceSong.numHorns) {
+          obj[sourceSong.shortName].push(sourceSong.numHorns)
+        }
+
+        return obj
+      },
+      {},
+    )
+
+    const shortNameMatches = partSources.reduce<Record<string, string>>(
+      (obj, sourceSong) => {
+        const hornNums = shortNameHornNums[sourceSong.shortName]
+        // find number closest to numHorns
+        const closestNum = hornNums.reduce(
+          (num, curr) =>
+            curr !== numHorns && curr % numHorns < num ? curr : num,
+          999,
+        )
+
+        const equalName =
+          (sourceSong.numHorns || 0) === numHorns ? sourceSong.fullName : ""
+
+        const closestName =
+          (sourceSong.numHorns || 0) === closestNum ? sourceSong.fullName : ""
+
+        obj[sourceSong.shortName] =
+          equalName || closestName || obj[sourceSong.shortName]
+
+        return obj
+      },
+      {},
+    )
+
+    partSources = partSources.filter(
+      (sourceSong) =>
+        !shortNameMatches[sourceSong.shortName] ||
+        shortNameMatches[sourceSong.shortName] === sourceSong.fullName,
     )
   }
 

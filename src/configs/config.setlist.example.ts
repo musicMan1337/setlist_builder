@@ -40,6 +40,7 @@ export const parts = part.reduce((obj: Record<string, Song[]>, part) => {
 export const setlist: Setlist = {
   setlistName: "YYYY-MM-DD - Setlist Name",
   sourceName: "",
+  options: {},
   sets: [
     {
       setName: "Set 1",

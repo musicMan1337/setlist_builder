@@ -54,7 +54,7 @@ function searchDirRecursively(group: string, dir: string) {
       //? If it's a directory, recurse
       searchDirRecursively(group, filePath)
     } else if (fileOrDir.endsWith(".pdf")) {
-      const songSource = buildSongSource(fileOrDir, filePath)
+      const songSource = buildSongSource(group, fileOrDir, filePath)
 
       songSourceGroups[group].songs.push(songSource)
     }

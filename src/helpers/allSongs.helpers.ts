@@ -6,7 +6,11 @@ import { SongSource } from "../types/sources"
 //* Mammoth : <song name> - <instrument name>.pdf
 //* LDB     : <song name> - <number>H - <key> - <instrument name>.pdf
 
-export const buildSongSource = (file: string, filePath: string) => {
+export const buildSongSource = (
+  group: string,
+  file: string,
+  filePath: string,
+) => {
   const songSource: SongSource = {
     fullName: file.replace(".pdf", ""),
     filePath: path.resolve(filePath),
@@ -20,8 +24,12 @@ export const buildSongSource = (file: string, filePath: string) => {
   // remove extension and normalize
   const formattedFile = file.split(".pdf")[0].trim().toLowerCase()
 
+  if (formattedFile.split(" - ").length < 2) {
+    return songSource
+  }
+
   // mammoth naming convention
-  if (formattedFile.includes("(") || formattedFile.split(" - ").length === 2) {
+  if (group === "mammoth") {
     const fullPart = formattedFile.split(" - ").slice(-1)[0]
     const nameNoPart = formattedFile.replace(` - ${fullPart}`, "")
 
@@ -34,14 +42,33 @@ export const buildSongSource = (file: string, filePath: string) => {
   }
 
   // LDB naming convention
-  else if (formattedFile.split(" - ").length === 4) {
-    const [songName, numHorns, key, part] = formattedFile
-      .split(" - ")
-      .map((s) => s.trim())
+  if (group === "ldb") {
+    const fileParts = formattedFile.split(" - ").map((s) => s.trim())
+
+    let [songName, key, numHorns, part] = fileParts
+
+    // special case for "amber" songs
+    if (formattedFile.includes("(amber)")) {
+      let [_part, _numHorns] = fileParts[fileParts.length - 1]
+        .trim()
+        .split(" (")
+
+      key = ""
+      songName = fileParts.slice(0, -1).join(" ").replace(" (amber)", "")
+      part = _part
+      numHorns = !_numHorns
+        ? "2h"
+        : _numHorns.toLowerCase().replace(")", "").replace("horns", "h")
+    }
+
+    if (key) {
+      key?.replace("maj", "")
+      key = key.charAt(0).toUpperCase() + key.slice(1)
+    }
 
     songSource.shortName = songName
-    songSource.numHorns = Number(numHorns.replace("h", ""))
-    songSource.key = key
+    songSource.numHorns = Number(numHorns?.replace("h", ""))
+    songSource.key = key || undefined
     songSource.part = part
   }
 
