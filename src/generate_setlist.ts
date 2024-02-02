@@ -14,6 +14,7 @@ import {
   getPartSources,
   conditionallySwapTptParts,
   closingLogs,
+  writeBlankPdfFile,
 } from "./helpers/setlist.helpers"
 
 import { SETLISTS_DIR, SOURCES_DIR } from "./configs/config.sources"
@@ -131,6 +132,13 @@ SETLIST.sets.forEach(({ setName, songs }, idx) => {
       // not found - unhappy path
       if (partSources.length === 0) {
         notFoundParts[part].push(shortName)
+
+        if (foundSongs[shortName].length === 0) {
+          const fileName = `${fullSongNumber}. ${songNameRaw} (NOT FOUND)`
+          const content = `Song not found: ${songNameRaw}\n\nMake some shit up`
+          writeBlankPdfFile(thisSetlistDir, part, fileName, content)
+        }
+
         return
       }
 

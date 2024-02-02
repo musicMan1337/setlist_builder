@@ -132,6 +132,20 @@ export const createSetlistFile = (
   pdfDoc.end()
 }
 
+export const writeBlankPdfFile = (
+  setlistDir: string,
+  part: string,
+  fileName: string,
+  content: string,
+) => {
+  const partDir = path.join(setlistDir, part)
+
+  const pdfDoc = new PDFDocument()
+  pdfDoc.pipe(fs.createWriteStream(`${partDir}/${fileName}.pdf`))
+  pdfDoc.fontSize(26).text(content || fileName)
+  pdfDoc.end()
+}
+
 export const getPartSourcesRaw = (
   foundSongs: FoundSongs,
   shortName: string,
