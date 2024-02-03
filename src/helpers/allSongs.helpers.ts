@@ -2,12 +2,14 @@ import path from "path"
 
 import { SongSource } from "../types/sources"
 
+import type { SourceDirectoryName } from "../types/sources"
+
 //? Song naming:
 //* Mammoth : <song name> - <instrument name>.pdf
 //* LDB     : <song name> - <number>H - <key> - <instrument name>.pdf
 
 export const buildSongSource = (
-  group: string,
+  group: SourceDirectoryName,
   file: string,
   filePath: string,
 ) => {

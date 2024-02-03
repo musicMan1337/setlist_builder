@@ -1,4 +1,5 @@
 import type { Song, Setlist } from "../types/setlists"
+import { SOURCE_DIRECTORIES } from "./config.sources"
 
 //? Copy this file to config.setlist.ts and fill in the setlist information.
 
@@ -39,7 +40,7 @@ export const parts = part.reduce((obj: Record<string, Song[]>, part) => {
 //! Note: change this per-setlist to suit your needs.
 export const setlist: Setlist = {
   setlistName: "YYYY-MM-DD - Setlist Name",
-  sourceName: "",
+  sourceName: "ldb",
   options: {},
   sets: [
     {

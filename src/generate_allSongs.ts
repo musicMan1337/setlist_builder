@@ -9,7 +9,7 @@ import {
 
 import { buildSongSource } from "./helpers/allSongs.helpers"
 
-import type { SongSources } from "./types/sources"
+import type { SongSources, SourceDirectoryName } from "./types/sources"
 
 //? Instrument naming (apply these to song naming conventions as well):
 //* <instrument name>.pdf
@@ -30,7 +30,7 @@ if (!fs.existsSync(sourcesDir)) {
 
 const songSourceGroups: Record<string, SongSources> = {}
 
-function searchDirRecursively(group: string, dir: string) {
+function searchDirRecursively(group: SourceDirectoryName, dir: string) {
   const filesOrDirs = fs.readdirSync(dir)
 
   if (filesOrDirs.length === 0) {
@@ -61,7 +61,9 @@ function searchDirRecursively(group: string, dir: string) {
   }
 }
 
-Object.entries(SOURCE_DIRECTORIES).forEach(([group, dirs]) => {
+Object.entries(SOURCE_DIRECTORIES).forEach(([_group, dirs]) => {
+  const group = _group as SourceDirectoryName
+
   songSourceGroups[group] = { songs: [] }
   dirs.forEach((dir) => searchDirRecursively(group, dir))
 })

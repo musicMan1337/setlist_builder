@@ -1,4 +1,4 @@
-import { SongSource } from "./sources"
+import { SongSource, SourceDirectoryName } from "./sources"
 
 export type Song = {
   shortName: string
@@ -13,7 +13,7 @@ export type Song = {
 
 export type Setlist = {
   setlistName: string
-  sourceName: string
+  sourceName: SourceDirectoryName
   options: {
     saxes?: number
     trumpets?: number
