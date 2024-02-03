@@ -120,14 +120,19 @@ SETLIST.sets.forEach(({ setName, songs }, idx) => {
 
     // find all sources for this part
     songs.forEach((songNameRaw, idx) => {
-      const { shortName } = getSongParts(songNameRaw)
+      const { shortName, key } = getSongParts(songNameRaw)
 
       const songNumber = idx + 1 < 10 ? "0" + (idx + 1) : idx + 1 + ""
       const fullSongNumber = `${setNumber}.${songNumber}`
 
       const partSourcesRaw = getPartSourcesRaw(foundSongs, shortName, partName)
 
-      const partSources = getPartSources(partSourcesRaw, partNumber, numHorns)
+      const partSources = getPartSources(
+        partSourcesRaw,
+        partNumber,
+        numHorns,
+        key,
+      )
 
       // not found - unhappy path
       if (partSources.length === 0) {

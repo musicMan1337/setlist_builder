@@ -61,6 +61,11 @@ function getPartCbValue(partName: string): CbVersion {
   return cbVersions[cbKey]
 }
 
+function keyMatches(sourceSong: SongSource, key: string) {
+  const { allKeys } = SETLIST.options
+  return allKeys || (!allKeys && (sourceSong.key || "") === key)
+}
+
 /*
 ? EXPORTS:
 */
@@ -88,16 +93,17 @@ export const findAllSongs = (
   songSources: SongSources,
   exactName: boolean,
 ) => {
+  const { allKeys } = SETLIST.options
+
   // find by shortName
   let sourceParts = songSources.songs.filter(
     (sourceSong) =>
-      sourceSong.shortName.toLowerCase() === shortName.toLowerCase() &&
-      (!SETLIST.options.allKeys ||
-        (SETLIST.options.allKeys && (sourceSong.key || "") === key)),
+      sourceSong.shortName.toLowerCase().includes(shortName.toLowerCase()) &&
+      (allKeys || (!allKeys && (sourceSong.key || "") === key)),
   )
 
+  // possibly missing correct key is allKeys is false
   if (!sourceParts.length && !exactName) {
-    // "fuzzy" find by shortName
     sourceParts = songSources.songs.filter((sourceSong) =>
       sourceSong.shortName.toLowerCase().includes(shortName.toLowerCase()),
     )
@@ -168,6 +174,7 @@ export const getPartSources = (
   partSourcesRaw: SongSource[],
   partNumber: string,
   numHorns: number,
+  key: string,
 ) => {
   let partSources: SongSource[] = []
 
@@ -201,7 +208,10 @@ export const getPartSources = (
       {},
     )
 
-    const shortNameMatches = partSources.reduce<Record<string, string>>(
+    const fullNameMatches = partSources.reduce<{
+      equalNames: string[]
+      closestNames: string[]
+    }>(
       (obj, sourceSong) => {
         const hornNums = shortNameHornNums[sourceSong.shortName]
         // find number closest to numHorns
@@ -211,25 +221,32 @@ export const getPartSources = (
           999,
         )
 
-        const equalName =
-          (sourceSong.numHorns || 0) === numHorns ? sourceSong.fullName : ""
+        const keyMatch = keyMatches(sourceSong, key)
 
-        const closestName =
-          (sourceSong.numHorns || 0) === closestNum ? sourceSong.fullName : ""
+        if ((sourceSong.numHorns || 0) === numHorns && keyMatch) {
+          obj.equalNames.push(sourceSong.fullName)
+        }
 
-        obj[sourceSong.shortName] =
-          equalName || closestName || obj[sourceSong.shortName]
+        if ((sourceSong.numHorns || 0) === closestNum && keyMatch) {
+          obj.closestNames.push(sourceSong.fullName)
+        }
 
         return obj
       },
-      {},
+      { equalNames: [], closestNames: [] },
     )
 
-    partSources = partSources.filter(
-      (sourceSong) =>
-        !shortNameMatches[sourceSong.shortName] ||
-        shortNameMatches[sourceSong.shortName] === sourceSong.fullName,
-    )
+    partSources = partSources.filter((sourceSong) => {
+      if (fullNameMatches.equalNames.length > 0) {
+        return fullNameMatches.equalNames.includes(sourceSong.fullName)
+      }
+
+      if (fullNameMatches.closestNames.length > 0) {
+        return fullNameMatches.closestNames.includes(sourceSong.fullName)
+      }
+
+      return true
+    })
   }
 
   return partSources
