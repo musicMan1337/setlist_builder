@@ -4,18 +4,19 @@ import math
 import argparse
 import PyPDF2
 import pikepdf
-# from PyPDF2.generic import DictionaryObject, ArrayObject, FloatObject, NameObject, IndirectObject
+from pikepdf import Name, Array, Dictionary
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
-from reportlab.lib import colors
+
 
 def sort_files(file):
     """ Custom sorting function to sort the files numerically and then alphabetically. """
     numbers = re.findall(r'\d+', file)
     if numbers:
         # Use the first found number for sorting, and convert it to integer
-        return (int(numbers[0]), file)
-    return (0, file)  # For files without numbers, default to 0
+        return int(numbers[0]), file
+    return 0, file  # For files without numbers, default to 0
+
 
 def merge_pdfs(files, output):
     """Merges a list of PDF files into a single PDF file.
@@ -32,6 +33,7 @@ def merge_pdfs(files, output):
     with open(output, "wb") as f:
         merger.write(f)
 
+
 def create_toc_page(toc, output_path):
     """Creates a TOC page with clickable links, justified text with filler characters, using a monospace font."""
     c = canvas.Canvas(output_path, pagesize=letter)
@@ -44,11 +46,11 @@ def create_toc_page(toc, output_path):
     fill_char = '_'  # Character used to fill space between title and page number
     buffer_space = 0.5  # Small buffer to ensure enough space for filler
 
-    # 37 lines fit on the toc page, any more and we need to add pages per 37 lines
+    # 37 lines fit on the toc page, any more lines, and we need to add pages per 37 lines
     total_pdfs = len(toc)
     add_page_amount = math.floor(total_pdfs / 37)
 
-    # Store toc meta data for use with the Writer class later
+    # Store toc meta-data for use with the Writer class later
     # { 'toc_page_num': 0, 'coordinates': (0, 0, 0, 0), 'dest_page_num': 0 }
     toc_data = []
 
@@ -93,6 +95,7 @@ def create_toc_page(toc, output_path):
     c.save()
     return toc_data
 
+
 def merge_pdfs_with_toc(files, toc, output):
     """Merges PDF files and adds a TOC at the beginning."""
     merger = PyPDF2.PdfMerger()
@@ -111,6 +114,7 @@ def merge_pdfs_with_toc(files, toc, output):
 
     return toc_data
 
+
 def create_toc(files):
     """Creates a TOC based on filenames."""
     toc = []
@@ -123,6 +127,7 @@ def create_toc(files):
         page_counter += len(reader.pages)
 
     return toc
+
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -143,6 +148,7 @@ def parse_arguments():
     )
     return parser.parse_args()
 
+
 def add_clickable_links_to_toc(merged_pdf_path, toc_data):
     pdf = pikepdf.open(merged_pdf_path)
 
@@ -152,32 +158,33 @@ def add_clickable_links_to_toc(merged_pdf_path, toc_data):
         coordinates = entry['coordinates']
 
         # Define the link annotation dictionary
-        link_annotation = pikepdf.Dictionary({
-            '/Type': '/Annot',
-            '/Subtype': '/Link',
-            '/Rect': pikepdf.Array([
+        link_annotation = Dictionary({
+            Name.Type: Name.Annot,
+            Name.Subtype: Name.Link,
+            Name.Rect: Array([
                 coordinates[0],
                 coordinates[1],
                 coordinates[2],
                 coordinates[3],
             ]),
-            # '/Border': pikepdf.Array([0, 0, 0]),
-            '/A': pikepdf.Dictionary({
-                '/S': '/GoTo',
-                '/D': pikepdf.Array([pdf.pages[dest_page_num].obj, '/XYZ', 0, 0, 0])
+            Name.Border: Array([0, 0, 0]),
+            Name.A: Dictionary({
+                Name.S: Name.GoTo,
+                Name.D: Array([pdf.pages[dest_page_num].obj, Name.XYZ, 0, 0, 0])
             })
         })
 
         # Append the annotation to the '/Annots' array of the page
         if '/Annots' not in pdf.pages[page_num]:
-            pdf.pages[page_num]['/Annots'] = pikepdf.Array([link_annotation])
+            pdf.pages[page_num].Annots = Array([link_annotation])
         else:
-            pdf.pages[page_num]['/Annots'].append(link_annotation)
+            pdf.pages[page_num].Annots.append(link_annotation)
 
     # debug print pdf object
     print(pdf.pages[1])
 
     pdf.save('output_with_clickable_links.pdf')
+
 
 def main():
     """Merges a list of PDF files and creates a table of contents for the merged file."""
@@ -211,6 +218,7 @@ def main():
 
     # TODO: Add clickable links to the TOC
     # add_clickable_links_to_toc(output, toc_data)
+
 
 if __name__ == "__main__":
     main()
