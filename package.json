@@ -7,8 +7,10 @@
     "build": "rimraf ./build && tsc",
     "presetlist": "npm run build",
     "preall": "npm run build",
+    "precopy": "npm run build",
     "setlist": "node ./build/generate_setlist.js",
-    "all": "node ./build/generate_allSongs.js"
+    "all": "node ./build/generate_allSongs.js",
+    "copy": "node ./build/copy_allSongs.js"
   },
   "repository": {
     "type": "git",

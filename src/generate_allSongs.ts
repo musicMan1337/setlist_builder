@@ -9,7 +9,11 @@ import {
 
 import { buildSongSource } from "./helpers/allSongs.helpers"
 
-import type { SongSources, SourceDirectoryName } from "./types/sources"
+import type {
+  SongSource,
+  SongSources,
+  SourceDirectoryName,
+} from "./types/sources"
 
 //? Instrument naming (apply these to song naming conventions as well):
 //* <instrument name>.pdf
@@ -69,16 +73,38 @@ Object.entries(SOURCE_DIRECTORIES).forEach(([_group, dirs]) => {
 })
 
 Object.entries(songSourceGroups).forEach(([group, songSourceGroup]) => {
-  const songSources: SongSources = {
-    songs: songSourceGroup.songs.sort((a, b) => {
-      const aName = a.shortName.toLowerCase()
-      const bName = b.shortName.toLowerCase()
+  //? Sort the songs by name alphabetically
+  const sortedSongs = songSourceGroup.songs.sort((a, b) => {
+    const aName = a.shortName.toLowerCase()
+    const bName = b.shortName.toLowerCase()
 
-      if (aName < bName) return -1
-      if (aName > bName) return 1
-      return 0
-    }),
-  }
+    if (aName < bName) return -1
+    if (aName > bName) return 1
+    return 0
+  })
+
+  //? Filter duplicates
+  const uniqueSongs = sortedSongs.filter(
+    ({ shortName, part, key, numHorns }, _, arr) => {
+      let keep = true
+
+      const dupe = arr.find(
+        (song) =>
+          !!song?.key &&
+          song.shortName === shortName &&
+          song.part === part &&
+          (song.numHorns ?? 0) >= (numHorns ?? 0),
+      )
+
+      if (dupe?.key && !key) {
+        keep = false
+      }
+
+      return keep
+    },
+  )
+
+  const songSources: SongSources = { songs: uniqueSongs }
 
   const json = JSON.stringify(songSources, null, 2)
 

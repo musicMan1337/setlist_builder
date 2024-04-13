@@ -136,7 +136,7 @@ SETLIST.sets.forEach(({ setName, songs }, idx) => {
 
       // not found - unhappy path
       if (partSources.length === 0) {
-        notFoundParts[part].push(shortName)
+        notFoundParts[part].push(`${fullSongNumber} ${shortName}`)
 
         if (foundSongs[shortName].length === 0) {
           const fileName = `${fullSongNumber}. ${songNameRaw} (NOT FOUND)`
@@ -156,9 +156,8 @@ SETLIST.sets.forEach(({ setName, songs }, idx) => {
           }
         }
 
-        const foundSource: Song = source
-        foundSource.customName = `${fullSongNumber}. ${source.fullName}`
-        foundParts[part].push(source)
+        const customName = `${fullSongNumber}. ${source.fullName}`
+        foundParts[part].push({ ...source, customName })
       })
     })
   })

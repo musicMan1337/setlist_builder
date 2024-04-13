@@ -163,10 +163,10 @@ export const getPartSourcesRaw = (
     }
 
     if (partName.includes("aux")) {
-      return ["drums", "aux"].some((part) => sourceSong.part.includes(part))
+      return ["drums", "aux"].some((part) => sourceSong.part?.includes(part))
     }
 
-    return sourceSong.part.includes(partName)
+    return sourceSong.part?.includes(partName)
   })
 }
 
