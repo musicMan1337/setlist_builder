@@ -6,3 +6,4 @@ setlists
 # repo-specific
 src/configs/*
 !src/configs/*.example.*
+.temp

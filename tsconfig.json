@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "checkJs": false,
     "target": "ESNext",
     "module": "NodeNext",
     "lib": ["es6"],
@@ -11,5 +12,7 @@
     "esModuleInterop": true,
     "moduleResolution": "NodeNext"
     // "resolveJsonModule": true
-  }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "**/*.js", "amber_script.js"]
 }

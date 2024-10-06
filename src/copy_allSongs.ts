@@ -26,35 +26,37 @@ const sourceDir = path.join(__dirname, "..", SETLISTS_DIR, SOURCES_DIR)
 
 const songSourceFiles: { [part: string]: string[] } = (
   sourceKey ? [sourceKey] : Object.keys(SOURCE_DIRECTORIES)
-).reduce((obj, sourceKey) => {
-  const sourceFile = path.join(sourceDir, `${sourceKey}.json`)
-  let songSources: SongSources
+)
+  .filter((s) => s !== "mammoth")
+  .reduce((obj, sourceKey) => {
+    const sourceFile = path.join(sourceDir, `${sourceKey}.json`)
+    let songSources: SongSources
 
-  try {
-    const jsonData = fs.readFileSync(sourceFile, {
-      encoding: "utf8",
-    })
-    songSources = JSON.parse(jsonData)
-  } catch (e) {
-    console.error(e)
-    console.error("No source exists for: " + sourceKey)
-    process.exit(1)
-  }
-
-  songSources.songs.forEach(({ part, filePath }) => {
-    const _part = part?.split(" ")[0] || "unknown"
-
-    if (_part === "parts") return
-
-    if (!obj[_part]) {
-      obj[_part] = []
+    try {
+      const jsonData = fs.readFileSync(sourceFile, {
+        encoding: "utf8",
+      })
+      songSources = JSON.parse(jsonData)
+    } catch (e) {
+      console.error(e)
+      console.error("No source exists for: " + sourceKey)
+      process.exit(1)
     }
 
-    obj[_part].push(filePath)
-  })
+    songSources.songs.forEach(({ part, filePath }) => {
+      const _part = part?.split(" ")[0] || "unknown"
 
-  return obj
-}, {} as { [part: string]: string[] })
+      if (_part === "parts") return
+
+      if (!obj[_part]) {
+        obj[_part] = []
+      }
+
+      obj[_part].push(filePath)
+    })
+
+    return obj
+  }, {} as { [part: string]: string[] })
 
 //? save songSourceFiles to json file in allDir
 const json = JSON.stringify(songSourceFiles, null, 2)
