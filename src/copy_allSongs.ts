@@ -24,12 +24,12 @@ fs.mkdirSync(allDir)
 
 const sourceDir = path.join(__dirname, "..", SETLISTS_DIR, SOURCES_DIR)
 
-const songSourceFiles: { [part: string]: string[] } = (
+const songSourceFiles: { [source: string]: { [part: string]: string[] } } = (
   sourceKey ? [sourceKey] : Object.keys(SOURCE_DIRECTORIES)
 )
   .filter((s) => s !== "mammoth")
-  .reduce((obj, sourceKey) => {
-    const sourceFile = path.join(sourceDir, `${sourceKey}.json`)
+  .reduce((obj, source) => {
+    const sourceFile = path.join(sourceDir, `${source}.json`)
     let songSources: SongSources
 
     try {
@@ -39,24 +39,34 @@ const songSourceFiles: { [part: string]: string[] } = (
       songSources = JSON.parse(jsonData)
     } catch (e) {
       console.error(e)
-      console.error("No source exists for: " + sourceKey)
+      console.error("No source exists for: " + source)
       process.exit(1)
     }
 
+    // console.log(songSources.songs.filter(Boolean))
+
     songSources.songs.forEach(({ part, filePath }) => {
-      const _part = part?.split(" ")[0] || "unknown"
+      let _part = part?.split(" ")[0]
+      if (!_part && filePath.toLowerCase().includes("amber")) {
+        _part = filePath?.split(" - ")[1].split(".")[0]
+      }
+      _part = _part || "unknown"
 
-      if (_part === "parts") return
+      if (_part.toLowerCase() === "parts") return
 
-      if (!obj[_part]) {
-        obj[_part] = []
+      if (!obj[source]) {
+        obj[source] = {}
       }
 
-      obj[_part].push(filePath)
+      if (!obj[source][_part]) {
+        obj[source][_part] = []
+      }
+
+      obj[source][_part].push(filePath)
     })
 
     return obj
-  }, {} as { [part: string]: string[] })
+  }, {} as { [source: string]: { [part: string]: string[] } })
 
 //? save songSourceFiles to json file in allDir
 const json = JSON.stringify(songSourceFiles, null, 2)
@@ -66,17 +76,26 @@ fs.writeFileSync(fileName, json)
 let filesCopied = 0
 
 //? loop through and copy all the files to allDir/part folders
-Object.entries(songSourceFiles).forEach(([part, files]) => {
-  const partDir = path.join(allDir, part)
+Object.entries(songSourceFiles).forEach(([source, parts]) => {
+  console.log(source)
 
-  if (!fs.existsSync(partDir)) {
-    fs.mkdirSync(partDir)
+  const sourceDir = path.join(allDir, source)
+  if (!fs.existsSync(sourceDir)) {
+    fs.mkdirSync(sourceDir)
   }
 
-  files.forEach((file) => {
-    const dest = path.join(partDir, path.basename(file))
-    fs.copyFileSync(file, dest)
-    filesCopied++
+  Object.entries(parts).forEach(([part, files]) => {
+    const partDir = path.join(sourceDir, part)
+    if (fs.existsSync(partDir)) {
+      fs.rmdirSync(partDir, { recursive: true })
+    }
+    fs.mkdirSync(partDir)
+
+    files.forEach((file) => {
+      const dest = path.join(partDir, path.basename(file))
+      fs.copyFileSync(file, dest)
+      filesCopied++
+    })
   })
 })
 
