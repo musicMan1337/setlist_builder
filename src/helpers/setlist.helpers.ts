@@ -156,6 +156,7 @@ export const getPartSourcesRaw = (
   foundSongs: FoundSongs,
   shortName: string,
   partName: string,
+  exactMatch: boolean,
 ) => {
   return foundSongs[shortName].filter((sourceSong) => {
     if (partName.includes("bass")) {
@@ -166,6 +167,15 @@ export const getPartSourcesRaw = (
       return ["drums", "aux"].some((part) => sourceSong.part?.includes(part))
     }
 
+    if (partName.includes("keys")) {
+      return ["piano", "organ", "synth", "keys"].some((part) =>
+        sourceSong.part?.includes(part),
+      )
+    }
+
+    if (exactMatch) {
+      return sourceSong.part === partName
+    }
     return sourceSong.part?.includes(partName)
   })
 }
@@ -264,7 +274,7 @@ export const conditionallySwapTptParts = (
   onlyMerge: boolean,
 ) => {
   if (!onlyMerge && cbVersions.trumpet === "M") {
-    foundParts["trumpet 1"] = foundParts["trumpet 1"].map((tpt1Song) => {
+    foundParts["trumpet 1"] = foundParts["trumpet 1"]?.map((tpt1Song) => {
       if (isCbTune(tpt1Song.fullName)) {
         return tpt1Song
       }
@@ -291,12 +301,12 @@ export const closingLogs = (
   failedMerges: string[],
 ) => {
   const totalPartsFound = Object.values(foundParts).reduce(
-    (total, parts) => total + parts.length,
+    (total, parts) => total + parts?.length,
     0,
   )
 
   const totalNotFound = Object.values(notFoundParts).reduce(
-    (total, parts) => total + parts.length,
+    (total, parts) => total + parts?.length,
     0,
   )
 

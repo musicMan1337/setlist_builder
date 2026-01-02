@@ -22,6 +22,9 @@ import { SETLISTS_DIR, SOURCES_DIR } from "./configs/config.sources"
 import type { Song } from "./types/setlists"
 import { SongSource, SongSources } from "./types/sources"
 
+const args = process.argv.slice(2)
+const noSongNumbers: boolean = args.includes("--no-numbers")
+
 /*
 CB Song Format:
 CB-[song name]
@@ -99,10 +102,10 @@ SETLIST.sets.forEach(({ setName, songs }, idx) => {
 
     foundSongs[shortName] = findAllSongs(shortName, key, songSources, exactName)
 
-    if (SETLIST.sourceName === "mammoth" && !foundSongs[shortName].length) {
-      console.error(`Song not found: ${shortName}`)
-      process.exit(1)
-    }
+    // if (SETLIST.sourceName === "mammoth" && !foundSongs[shortName].length) {
+    //   console.error(`Song not found: ${shortName} - exiting`)
+    //   process.exit(1)
+    // }
   })
 
   const setNumber = idx + 1
@@ -123,9 +126,15 @@ SETLIST.sets.forEach(({ setName, songs }, idx) => {
       const { shortName, key } = getSongParts(songNameRaw)
 
       const songNumber = idx + 1 < 10 ? "0" + (idx + 1) : idx + 1 + ""
-      const fullSongNumber = `${setNumber}.${songNumber}`
+      const fullSongNumber = noSongNumbers ? "" : `${setNumber}.${songNumber}`
+      const songNumberFormat = fullSongNumber ? `${fullSongNumber}. ` : ""
 
-      const partSourcesRaw = getPartSourcesRaw(foundSongs, shortName, partName)
+      const partSourcesRaw = getPartSourcesRaw(
+        foundSongs,
+        shortName,
+        partName,
+        SETLIST.sourceName === "mammoth",
+      )
 
       const partSources = getPartSources(
         partSourcesRaw,
@@ -139,7 +148,7 @@ SETLIST.sets.forEach(({ setName, songs }, idx) => {
         notFoundParts[part].push(`${fullSongNumber} ${shortName}`)
 
         if (foundSongs[shortName].length === 0) {
-          const fileName = `${fullSongNumber}. ${songNameRaw} (NOT FOUND)`
+          const fileName = `${songNumberFormat}${songNameRaw} (NOT FOUND)`
           const content = `Song not found: ${songNameRaw}\n\nMake some shit up`
           writeBlankPdfFile(thisSetlistDir, part, fileName, content)
         }
@@ -148,7 +157,7 @@ SETLIST.sets.forEach(({ setName, songs }, idx) => {
       }
 
       // found!
-      partSources.forEach((source) => {
+      partSources?.forEach((source) => {
         if (partName.includes("aux") && partSources.length > 1) {
           // if there's an aux part, don't include drums
           if (source.part === "drums") {
@@ -156,7 +165,7 @@ SETLIST.sets.forEach(({ setName, songs }, idx) => {
           }
         }
 
-        const customName = `${fullSongNumber}. ${source.fullName}`
+        const customName = `${songNumberFormat}${source.fullName}`
         foundParts[part].push({ ...source, customName })
       })
     })
@@ -170,7 +179,7 @@ if (SETLIST.sourceName === "mammoth") {
 
 //copy parts into respective folders
 Object.entries(foundParts).forEach(([part, partSources]) => {
-  partSources.forEach((source) => {
+  partSources?.forEach((source) => {
     const partDir = path.join(thisSetlistDir, part)
     const sourcePath = source.filePath
     const destPath = path.join(
@@ -233,10 +242,11 @@ function executePythonScript({ out, source, merge, part }: PyScriptArgs) {
 
   // Spawn the Python process
   const pythonProcess = spawn("python", [scriptPath, ...args])
+  let outputData = ""
 
   // Handle the standard output and error
   pythonProcess.stdout.on("data", (data) => {
-    console.log(`stdout: ${data}`)
+    outputData += data.toString()
   })
 
   pythonProcess.stderr.on("data", (data) => {
@@ -253,7 +263,12 @@ function executePythonScript({ out, source, merge, part }: PyScriptArgs) {
       failedMerges.push(part)
     }
 
-    fs.rmSync(`${merge}_temp-toc.pdf`)
+    const { remove, copy, copyTo } = JSON.parse(outputData.trim())
+
+    fs.copyFileSync(copy, copyTo)
+    remove.forEach((file: string) => {
+      fs.rmSync(file)
+    })
 
     if (mergedParts.length === Object.keys(PARTS).length) {
       progress.update(progressTotal, { part: "Done!" })

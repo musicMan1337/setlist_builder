@@ -44,13 +44,13 @@ export const buildSongSource = (
   }
 
   // LDB naming convention
-  if (group === "ldb") {
+  if (group === "ldb" || group === "amber") {
     const fileParts = formattedFile.split(" - ").map((s) => s.trim())
 
     let [songName, key, numHorns, part] = fileParts
 
     // special case for "amber" songs
-    if (formattedFile.includes("(amber)")) {
+    if (formattedFile.includes("(amber)") && !numHorns && !part) {
       let [_part, _numHorns] = fileParts[fileParts.length - 1]
         .trim()
         .split(" (")

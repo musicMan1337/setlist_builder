@@ -1,6 +1,7 @@
 import re
 import os
 import math
+import json
 import argparse
 import PyPDF2
 import pikepdf
@@ -101,7 +102,7 @@ def merge_pdfs_with_toc(files, toc, output):
     merger = PyPDF2.PdfMerger()
 
     # Create TOC page and append
-    toc_path = f'{output}_temp-toc.pdf'
+    toc_path = f'{output}_toc.pdf'
     toc_data = create_toc_page(toc, toc_path)
     merger.append(toc_path)
 
@@ -152,38 +153,59 @@ def parse_arguments():
 def add_clickable_links_to_toc(merged_pdf_path, toc_data):
     pdf = pikepdf.open(merged_pdf_path)
 
+    # Calculate how many TOC pages were added
+    toc_pages = max(entry['toc_page_num'] for entry in toc_data)
+
     for entry in toc_data:
-        page_num = entry['toc_page_num'] - 1
-        dest_page_num = entry['dest_page_num'] - 1
+        page_num = entry['toc_page_num'] - 1  # Convert to 0-indexed
+        dest_page_num = entry['dest_page_num'] + toc_pages - 1  # Adjust for TOC pages
         coordinates = entry['coordinates']
 
-        # Define the link annotation dictionary
-        link_annotation = Dictionary({
-            Name.Type: Name.Annot,
-            Name.Subtype: Name.Link,
-            Name.Rect: Array([
-                coordinates[0],
-                coordinates[1],
-                coordinates[2],
-                coordinates[3],
-            ]),
-            Name.Border: Array([0, 0, 0]),
-            Name.A: Dictionary({
-                Name.S: Name.GoTo,
-                Name.D: Array([pdf.pages[dest_page_num].obj, Name.XYZ, 0, 0, 0])
-            })
+        # Get the target page
+        target_page = pdf.pages[dest_page_num]
+
+        # Create arrays as pikepdf objects
+        rect_array = pikepdf.Array([
+            coordinates[0],
+            coordinates[1],
+            coordinates[2],
+            coordinates[3]
+        ])
+
+        border_array = pikepdf.Array([0, 0, 0])
+
+        dest_array = pikepdf.Array([
+            target_page.obj,
+            pikepdf.Name.XYZ,
+            0,
+            0,
+            0
+        ])
+
+        # Create the annotation dictionary using STRING keys
+        link_dict = pikepdf.Dictionary({
+            '/Type': pikepdf.Name.Annot,
+            '/Subtype': pikepdf.Name.Link,
+            '/Rect': rect_array,
+            '/Border': border_array,
+            '/Dest': dest_array
         })
 
-        # Append the annotation to the '/Annots' array of the page
-        if '/Annots' not in pdf.pages[page_num]:
-            pdf.pages[page_num].Annots = Array([link_annotation])
+        # Make it an indirect object
+        link_annotation = pdf.make_indirect(link_dict)
+
+        # Append the annotation to the page
+        toc_page = pdf.pages[page_num]
+        if '/Annots' not in toc_page:
+            toc_page.Annots = pikepdf.Array([link_annotation])
         else:
-            pdf.pages[page_num].Annots.append(link_annotation)
+            toc_page.Annots.append(link_annotation)
 
     # debug print pdf object
-    print(pdf.pages[1])
+    # print(pdf.pages[1])
 
-    pdf.save('output_with_clickable_links.pdf')
+    pdf.save(f'{merged_pdf_path}_annotated.pdf')
+    pdf.close()
 
 
 def main():
@@ -216,9 +238,14 @@ def main():
 
     toc_data = merge_pdfs_with_toc(files, toc, output)
 
-    # TODO: Add clickable links to the TOC
-    # add_clickable_links_to_toc(output, toc_data)
+    add_clickable_links_to_toc(output, toc_data)
 
+    result = {
+        'remove': [f'{output}_toc.pdf', f'{output}_annotated.pdf'],
+        'copy': f'{output}_annotated.pdf',
+        'copyTo': output
+    }
+    print(json.dumps(result))
 
 if __name__ == "__main__":
     main()
